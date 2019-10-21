@@ -16,6 +16,7 @@ enum UserSessionState: FiniteState {
     enum Events {
         case start
         case lock
+        case unlock
     }
 
     static func reduce(_ state: UserSessionState, _ event: UserSessionState.Events) -> UserSessionState {
@@ -24,6 +25,8 @@ enum UserSessionState: FiniteState {
             return .unlocked
         case (_ , .lock):
             return .locked
+        case (_ , .unlock):
+            return .unlocked
         default:
             return state
         }
