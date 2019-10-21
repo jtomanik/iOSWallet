@@ -7,19 +7,22 @@
 //
 
 import Foundation
+import RxSwift
+
+protocol PinValidation {
+    func validate(pin: [Int]) -> Observable<Bool>
+}
 
 enum LockState: FiniteState {
 
-    static let pinLength = 1
-
     case initial
     case pin([Int])
-    case validating([Int])
     case invalid
     case valid
 
     enum Events {
         case digit(Int)
+        case validating([Int])
         case back
         case reset
         case pinValid
@@ -35,11 +38,7 @@ enum LockState: FiniteState {
         case (.pin(let digits), .digit(let i)):
             var newDigits = digits
             newDigits.append(i)
-            if digits.count <= LockState.pinLength - 1 {
-                return .pin(newDigits)
-            } else {
-                return .validating(newDigits)
-            }
+            return .pin(newDigits)
 
         case (.pin(let digits), .back):
             if digits.count > 0 {
@@ -50,14 +49,14 @@ enum LockState: FiniteState {
                 return state
             }
 
-        case (.validating, .pinValid):
+        case (.pin, .pinValid):
             return .valid
 
-        case (.validating, .pinInvalid):
+        case (.pin, .pinInvalid):
             return .invalid
 
         case (_, .reset):
-            return .initial
+            return .pin([])
             
         default:
             return state
@@ -65,26 +64,53 @@ enum LockState: FiniteState {
     }
 }
 
-extension Modules.Lock.Routes: Transformable {
+extension Modules.Lock.Output: Transformable {
 
-    static func transform(_ state: LockState) -> Modules.Lock.Routes? {
+    static func transform(_ state: LockState) -> Modules.Lock.Output? {
         switch state {
         case .initial:
-            return .config(digits: LockState.pinLength)
+            return .config(digits: PinLock.pinLength)
+        case .pin(let digits):
+            return .pin(digits: digits.count)
+        case .invalid:
+            return .wrongPin
         case .valid:
             return .back
-        default:
-            return nil
         }
     }
 }
 
-class PinLock: Automata<LockState, Modules.Lock.Routes>, LockViewModel {
+class PinLock: Automata<LockState, Modules.Lock.Output>, LockViewModel {
 
-    init() {
+    static let pinLength = 4
+
+    init(validator: PinValidation) {
         super.init(
             initialState: .initial,
             reducer: LockState.reduce,
-            transformer: Modules.Lock.Routes.transform)
+            transformer: Modules.Lock.Output.transform,
+            middleware: [PinLock.middlewarePinValidation(with: validator)],
+            requests: [PinLock.requestPinValidation(digits: PinLock.pinLength)])
+    }
+
+    static func middlewarePinValidation(with validator: PinValidation) -> Middleware {
+        return { event -> Observable<LockState.Events> in
+            guard case let .validating(input) = event else {
+                return Observable.just(event)
+            }
+            return validator
+                .validate(pin: input)
+                .map { return $0 ? LockState.Events.pinValid : LockState.Events.pinInvalid }
+        }
+    }
+
+    static func requestPinValidation(digits: Int) -> Request {
+        return { state -> Observable<LockState.Events> in
+            guard case let .pin(input) = state,
+                input.count == digits else {
+                return Observable.empty()
+            }
+            return Observable.just(LockState.Events.validating(input))
+        }
     }
 }
