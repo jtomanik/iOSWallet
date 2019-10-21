@@ -8,16 +8,52 @@
 
 import Foundation
 import UIKit
+import RxSwift
 
 class Indicator: UIView {
-    var isNeedClear = false
+    var needsClearBackground = true {
+        didSet {
+            self.setNeedsDisplay()
+        }
+    }
+
+    init() {
+        super.init(frame: CGRect.zero)
+        self.backgroundColor = UIColor.white
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     override func draw(_ rect: CGRect) {
         super.draw(rect)
-        drawCircle(rect)
+        let backgroundColor = needsClearBackground ? UIColor.clear.cgColor : UIColor.lightGray.cgColor
+        drawCircle(rect, background: backgroundColor)
     }
 }
 
 class PinIndicator: UIButton {
+
+    var digitStream: Observable<Int> {
+        return self.rx
+            .tap
+            .map { self.digit }
+    }
+
+    let digit: Int
+
+    init(digit: Int) {
+        self.digit = digit
+        super.init(frame: CGRect.zero)
+        self.setTitle("\(digit)", for: .normal)
+        self.setTitleColor(UIColor.black, for: .normal)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     override func draw(_ rect: CGRect) {
         super.draw(rect)
         drawCircle(rect)
@@ -25,7 +61,7 @@ class PinIndicator: UIButton {
 }
 
 extension UIView {
-    func drawCircle(_ rect:CGRect) {
+    func drawCircle(_ rect:CGRect, background: CGColor = UIColor.clear.cgColor) {
         guard let context = UIGraphicsGetCurrentContext() else {return}
         let rect = CGRect(x: rect.origin.x+0.5,
                           y: rect.origin.y+0.5,
@@ -34,7 +70,9 @@ extension UIView {
 
         context.setLineWidth(1)
         context.setStrokeColor(UIColor.lightGray.cgColor)
+        context.setFillColor(background)
         context.strokeEllipse(in: rect)
+        context.fillEllipse(in: rect)
     }
 
     func shake(delegate: CAAnimationDelegate) {
