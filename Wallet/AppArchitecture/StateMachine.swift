@@ -59,6 +59,7 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
     public let events: PublishSubject<State.Events>
 
     private let state: BehaviorSubject<State>
+    private let backgroundScheduler = SerialDispatchQueueScheduler(qos: .default)
     private let disposeBag = DisposeBag()
 
     init(
@@ -75,7 +76,9 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
 
         events
             .map { [middleware] event in Automata.sanitize(middleware).map { $0(event) } }
+            .observeOn(backgroundScheduler)
             .map { Observable.from($0).merge() }.merge()
+            .subscribeOn(scheduler)
             .withLatestFrom(state) { ($1, $0) }
             .map { [reducer] in reducer($0.0, $0.1) }
             .distinctUntilChanged()
@@ -83,8 +86,10 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
             .disposed(by: disposeBag)
 
         state
+            .observeOn(backgroundScheduler)
             .map { [requests] state in requests.map { $0(state) } }
             .map { Observable.from($0).merge() }.merge()
+            .subscribeOn(scheduler)
             .bind(to: events)
             .disposed(by: disposeBag)
 
