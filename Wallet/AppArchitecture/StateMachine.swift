@@ -8,44 +8,57 @@
 
 import Foundation
 import RxSwift
+import RxOptional
 
 // MARK: Definitions
+
+public protocol FiniteState: Equatable {
+
+    /// Represents all possible events that can happen in your system which can cause a transition to a new State.
+    associatedtype Events
+
+    static func reduce(_ state: Self, _ event: Events) -> Self
+}
 
 public protocol StateMachine {
 
     /// Defines the state that is managed by this StateMachine.
-    associatedtype State: Equatable
+    associatedtype State: FiniteState
 
     /// Defines the events this StateMachine can handle.
-    /// Represents all possible events that can happen in your system which can cause a transition to a new State.
-    associatedtype Events
 
-    typealias Middleware = (Events) -> Observable<Events>
-    typealias Reducer = (State, Events) -> State
-    typealias Request = (State) -> Observable<Events>
+    typealias Middleware = (State.Events) -> Observable<State.Events>
+    typealias Reducer = (State, State.Events) -> State
+    typealias Request = (State) -> Observable<State.Events>
 
-    func handle(_ event: Events)
+    var events: PublishSubject<State.Events> { get }
+
+    func handle(_ event: State.Events)
+}
+
+public protocol Transformable {
+    associatedtype State: FiniteState
+    static func transform(_ state: State) -> Self?
 }
 
 public protocol ComposableStateMachine: StateMachine {
 
     /// `Output` defines the type that can be emitted as output events.
-    associatedtype Output
+    associatedtype Output: Transformable
 
-    typealias Transform = (State) -> Output
+    typealias Transform = (State) -> Output?
 
-    var output: PublishSubject<Output> { get }
+    var output: ReplaySubject<Output> { get }
 }
 
 // MARK: Implementations
 
-public class Automata<State: Equatable, Events, Output>: ComposableStateMachine {
+public class Automata<State: FiniteState, Output: Transformable>: ComposableStateMachine {
 
-    public let output: PublishSubject<Output>
+    public let output: ReplaySubject<Output>
+    public let events: PublishSubject<State.Events>
 
     private let state: BehaviorSubject<State>
-    private let events: PublishSubject<Events>
-
     private let disposeBag = DisposeBag()
 
     init(
@@ -58,7 +71,7 @@ public class Automata<State: Equatable, Events, Output>: ComposableStateMachine 
 
         self.state = BehaviorSubject(value: initialState)
         self.events = PublishSubject()
-        self.output = PublishSubject()
+        self.output = ReplaySubject.create(bufferSize: 1)
 
         events
             .map { [middleware] event in Automata.sanitize(middleware).map { $0(event) } }
@@ -77,17 +90,18 @@ public class Automata<State: Equatable, Events, Output>: ComposableStateMachine 
 
         state
             .map { [transformer] state in transformer(state) }
+            .filterNil()
             .bind(to: output)
             .disposed(by: disposeBag)
     }
 
-    public func handle(_ event: Events) {
+    public func handle(_ event: State.Events) {
         events.on(.next(event))
     }
 
     private static func sanitize(_ array: [Middleware]) -> [Middleware] {
         guard !array.isEmpty else {
-            func passthru(_ event: Events) -> Observable<Events> {
+            func passthru(_ event: State.Events) -> Observable<State.Events> {
                 return Observable.just(event)
             }
 
