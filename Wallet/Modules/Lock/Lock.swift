@@ -10,14 +10,8 @@ import Foundation
 import UIKit
 import RxSwift
 
-protocol LockViewPresenting: ViewPresenting {}
-
-protocol LockNavigator {
-    func navigate(_ flow: Modules.Lock.Routes)
-}
-
 protocol LockViewModel {
-    var output: ReplaySubject<Modules.Lock.Routes> { get }
+    var output: ReplaySubject<Modules.Lock.Output> { get }
     func handle(_ event: LockState.Events)
 }
 
@@ -25,8 +19,10 @@ extension Modules {
 
     struct Lock {
 
-        enum Routes {
+        enum Output: Equatable {
             case config(digits: Int)
+            case pin(digits: Int)
+            case wrongPin
             case back
         }
     }
@@ -35,21 +31,23 @@ extension Modules {
 extension Modules.Lock {
 
     static func make() -> UIViewController {
-        let vc = LockViewController()
+        let vm = PinLock(validator: PinValidator())
+
+        vm.output
+            .observeOn(MainScheduler.instance)
+            .map { Modules.Lock.translate(route: $0) }
+            .filterNil()
+            .bind(onNext: Modules.Root.navigate)
+
+        let vc = LockViewController(viewModel: vm)
         return vc
     }
-}
 
-struct LockFlowController: LockNavigator {
-
-    let parentFlow: RootViewPresenting
-
-    func navigate(_ flow: Modules.Lock.Routes) {
-        switch flow {
-        case .back:
-            parentFlow.dismiss()
-        default:
-            return
+    private static func translate(route: Modules.Lock.Output) -> Modules.Root.Routes? {
+        guard case .back = route else {
+            return nil
         }
+
+        return .mainUI
     }
 }
