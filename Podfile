@@ -5,8 +5,13 @@ platform :ios, '12.0'
 workspace 'Wallet'
 
 target 'Wallet' do
-    pod 'CardParts'
     pod 'Swinject'
+    pod 'RxSwift'
+    pod 'RxCocoa'
+    pod 'RxOptional'
+
+    pod 'CardParts'
+    pod 'Cartography'
 
     pod 'Sourcery'
     pod 'SwiftLint'
