@@ -40,26 +40,27 @@ extension Modules.Root {
             UserSession()
         }.inObjectScope(.container)
 
-        container.register(RootNavigator.self) { r in
-            RootFlowController(parentFlow: r.resolve(RootViewPresenting.self)!)
-        }.inObjectScope(.container)
+        let vm = container.resolve(RootViewModel.self)!
+        vm.output
+            .observeOn(MainScheduler.instance)
+            .bind(onNext: Modules.Root.navigate)
 
         let bounds = UIScreen.main.bounds
         let window = RootWindow(frame: bounds,
-                                viewModel: container.resolve(RootViewModel.self)!,
-                                navigator: container.resolve(RootNavigator.self)!)
+                                viewModel: vm)
         window.backgroundColor = UIColor.white
         return window
     }
-}
 
-struct RootFlowController: RootNavigator {
+    static func navigate(_ flow: Modules.Root.Routes) {
+        guard let parentFlow = container.resolve(RootViewPresenting.self),
+            let vm = container.resolve(RootViewModel.self) else {
+            fatalError("Could not resolve dependency")
+        }
 
-    let parentFlow: RootViewPresenting
-
-    func navigate(_ flow: Modules.Root.Routes) {
         switch flow {
         case .mainUI:
+            vm.handle(UserSessionState.Events.unlock)
             parentFlow.dismiss()
             parentFlow.show(Modules.Wallet.make())
         case .lockedUI:

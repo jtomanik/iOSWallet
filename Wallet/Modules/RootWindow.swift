@@ -17,19 +17,9 @@ class RootWindow: UIWindow {
 
     private let disposeBag = DisposeBag()
 
-    init(
-        frame: CGRect,
-        viewModel: RootViewModel,
-        navigator: RootNavigator) {
-
+    init(frame: CGRect, viewModel: RootViewModel) {
         self.viewModel = viewModel
         super.init(frame: frame)
-
-        self.viewModel
-            .output
-            .observeOn(MainScheduler.instance)
-            .bind(onNext: navigator.navigate)
-            .disposed(by: disposeBag)
     }
     
     required init?(coder: NSCoder) {
