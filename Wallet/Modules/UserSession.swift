@@ -10,7 +10,7 @@ import Foundation
 
 enum UserSessionState: FiniteState {
     case loading
-    case unlocked
+    case unlocked(fromLock: Bool)
     case locked
 
     enum Events {
@@ -22,11 +22,11 @@ enum UserSessionState: FiniteState {
     static func reduce(_ state: UserSessionState, _ event: UserSessionState.Events) -> UserSessionState {
         switch (state, event) {
         case (.loading, .start):
-            return .unlocked
+            return .unlocked(fromLock: false)
         case (_ , .lock):
             return .locked
         case (_ , .unlock):
-            return .unlocked
+            return .unlocked(fromLock: true)
         default:
             return state
         }
@@ -34,11 +34,12 @@ enum UserSessionState: FiniteState {
 }
 
 extension Modules.Root.Routes: Transformable {
-
+    typealias State = UserSessionState
+    
     static func transform(_ state: UserSessionState) -> Modules.Root.Routes? {
         switch state {
-        case .unlocked:
-            return .mainUI
+        case .unlocked(let isFromLock):
+            return .mainUI(fromLock: isFromLock)
         case .locked:
             return .lockedUI
         default:

@@ -10,7 +10,11 @@ import Foundation
 import UIKit
 import RxSwift
 
-protocol RootViewPresenting: ViewPresenting {}
+protocol RootViewPresenting {
+    func show(_ vc: UIViewController)
+    func present(_ vc: UIViewController)
+    func dismiss()
+}
 
 protocol RootNavigator {
     func navigate(_ flow: Modules.Root.Routes)
@@ -25,8 +29,8 @@ extension Modules {
 
     struct Root {
         
-        enum Routes {
-            case mainUI
+        enum Routes: Equatable {
+            case mainUI(fromLock: Bool)
             case lockedUI
         }
     }
@@ -59,10 +63,13 @@ extension Modules.Root {
         }
 
         switch flow {
-        case .mainUI:
-            vm.handle(UserSessionState.Events.unlock)
-            parentFlow.dismiss()
-            parentFlow.show(Modules.Wallet.make())
+        case .mainUI(let isFromLock):
+            if isFromLock {
+                vm.handle(UserSessionState.Events.unlock)
+                parentFlow.dismiss()
+            } else {
+                parentFlow.show(Modules.Wallet.make())
+            }
         case .lockedUI:
             parentFlow.present(Modules.Lock.make())
         }

@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CardParts
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -14,7 +15,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: RootWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-
+        WalletTheme().apply()
+        
         container.register(RootViewPresenting.self) { _ in
             return self
         }.inObjectScope(.container)

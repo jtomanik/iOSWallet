@@ -15,8 +15,6 @@ class RootWindow: UIWindow {
 
     let viewModel: RootViewModel
 
-    private let disposeBag = DisposeBag()
-
     init(frame: CGRect, viewModel: RootViewModel) {
         self.viewModel = viewModel
         super.init(frame: frame)
