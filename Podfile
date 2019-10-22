@@ -12,16 +12,13 @@ target 'Wallet' do
 
     pod 'CardParts'
     pod 'Cartography'
-
-    pod 'Sourcery'
-    pod 'SwiftLint'
 end
 
 target 'WalletTests' do
     pod 'RxBlocking'
-    pod 'RxTest'
     pod 'Quick'
     pod 'Nimble'
+    pod 'RxNimble'
     
     inherit! :search_paths
 end
