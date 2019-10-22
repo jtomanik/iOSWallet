@@ -17,7 +17,7 @@ import AudioToolbox
 
 class LockViewController: UIViewController {
 
-    let viewModel: LockViewModel
+    weak var viewModel: LockViewModel!
 
     private let digit0 = PinIndicator(digit: 0)
     private let digit1 = PinIndicator(digit: 1)
@@ -113,7 +113,7 @@ class LockViewController: UIViewController {
         self.viewModel
             .output
             .observeOn(MainScheduler.instance)
-            .bind(onNext: self.handle)
+            .subscribeNext(weak: self, LockViewController.handle)
             .disposed(by: disposeBag)
     }
 
@@ -172,7 +172,7 @@ class LockViewController: UIViewController {
 
     private func bind(button: PinIndicator) {
         digitStream(for: button)
-            .bind(onNext: viewModel.handle)
+            .subscribeNext(weak: self) { $0.viewModel.handle }
             .disposed(by: disposeBag)
     }
 
