@@ -10,7 +10,7 @@ import Foundation
 import UIKit
 import RxSwift
 
-protocol LockViewModel {
+protocol LockViewModel: class {
     var output: ReplaySubject<Modules.Lock.Output> { get }
     func handle(_ event: LockState.Events)
 }
@@ -48,6 +48,6 @@ extension Modules.Lock {
             return nil
         }
 
-        return .mainUI
+        return .mainUI(fromLock: true)
     }
 }

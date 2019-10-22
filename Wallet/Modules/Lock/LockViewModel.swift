@@ -89,8 +89,8 @@ class PinLock: Automata<LockState, Modules.Lock.Output>, LockViewModel {
             initialState: .initial,
             reducer: LockState.reduce,
             transformer: Modules.Lock.Output.transform,
-            middleware: [PinLock.middlewarePinValidation(with: validator)],
-            requests: [PinLock.requestPinValidation(digits: PinLock.pinLength)])
+            middleware: PinLock.middlewarePinValidation(with: validator),
+            request: PinLock.requestPinValidation(digits: PinLock.pinLength))
     }
 
     static func middlewarePinValidation(with validator: PinValidation) -> Middleware {
