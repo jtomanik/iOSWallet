@@ -36,7 +36,7 @@ public protocol StateMachine {
     func handle(_ event: State.Events)
 }
 
-public protocol Transformable {
+public protocol Transformable: Equatable {
     associatedtype State: FiniteState
     static func transform(_ state: State) -> Self?
 }
@@ -59,6 +59,8 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
     public let events: PublishSubject<State.Events>
 
     private let state: BehaviorSubject<State>
+    private let middleware: Middleware
+    private let request: Request
     private let backgroundScheduler = SerialDispatchQueueScheduler(qos: .default)
     private let disposeBag = DisposeBag()
 
@@ -66,19 +68,20 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
         initialState: State,
         reducer: @escaping Reducer,
         transformer: @escaping Transform,
-        middleware: [Middleware] = [],
-        requests: [Request] = [],
+        middleware: Middleware? = nil,
+        request: Request? = nil,
         scheduler: ImmediateSchedulerType = MainScheduler.instance) {
 
         self.state = BehaviorSubject(value: initialState)
         self.events = PublishSubject()
         self.output = ReplaySubject.create(bufferSize: 1)
 
+        self.middleware = middleware ?? { event in return Observable.just(event) }
+        self.request = request ?? { _ in return Observable.empty() }
+
         events
-            .map { [middleware] event in Automata.sanitize(middleware).map { $0(event) } }
-            .observeOn(backgroundScheduler)
-            .map { Observable.from($0).merge() }.merge()
-            .subscribeOn(scheduler)
+            .flatMap { self.middleware($0) }
+            .observeOn(MainScheduler.asyncInstance)
             .withLatestFrom(state) { ($1, $0) }
             .map { [reducer] in reducer($0.0, $0.1) }
             .distinctUntilChanged()
@@ -86,33 +89,19 @@ public class Automata<State: FiniteState, Output: Transformable>: ComposableStat
             .disposed(by: disposeBag)
 
         state
-            .observeOn(backgroundScheduler)
-            .map { [requests] state in requests.map { $0(state) } }
-            .map { Observable.from($0).merge() }.merge()
-            .subscribeOn(scheduler)
+            .flatMap { self.request($0) }
             .bind(to: events)
             .disposed(by: disposeBag)
 
         state
             .map { [transformer] state in transformer(state) }
             .filterNil()
+            .distinctUntilChanged()
             .bind(to: output)
             .disposed(by: disposeBag)
     }
 
     public func handle(_ event: State.Events) {
         events.on(.next(event))
-    }
-
-    private static func sanitize(_ array: [Middleware]) -> [Middleware] {
-        guard !array.isEmpty else {
-            func passthru(_ event: State.Events) -> Observable<State.Events> {
-                return Observable.just(event)
-            }
-
-            return [passthru]
-        }
-
-        return array
     }
 }

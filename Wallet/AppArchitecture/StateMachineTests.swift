@@ -9,10 +9,10 @@
 @testable import Wallet
 
 import RxSwift
-import RxTest
 import RxBlocking
 import Quick
 import Nimble
+import RxNimble
 
 /**
     flow:
@@ -105,8 +105,8 @@ class StateMachineSpec: QuickSpec {
                     initialState: MockState.state([]),
                     reducer: testReducer,
                     transformer: testTransformer,
-                    middleware: [],
-                    requests: []
+                    middleware: nil,
+                    request: nil
                 )
 
                 lastReducedState = nil
@@ -123,10 +123,9 @@ class StateMachineSpec: QuickSpec {
             describe("has initial state") {
                 it("that is properly initialised") {
                     mock.handle(.next(1))
-                    sleep(1)
                     
-                    expect(reducerInvoications).to(equal(1))
-                    expect(lastReducedState).to(equal(.state([])))
+                    expect(reducerInvoications).toEventually(equal(1))
+                    expect(lastReducedState).toEventually(equal(.state([])))
                 }
             }
 
@@ -134,11 +133,10 @@ class StateMachineSpec: QuickSpec {
                 it("that is called for each event") {
                     mock.handle(.next(1))
                     mock.handle(.next(2))
-                    sleep(1)
 
-                    expect(reducerInvoications).to(equal(2))
-                    expect(lastReducedState).to(equal(.state([1])))
-                    expect(lastReducedEvent).to(equal(.next(2)))
+                    expect(reducerInvoications).toEventually(equal(2))
+                    expect(lastReducedState).toEventually(equal(.state([1])))
+                    expect(lastReducedEvent).toEventually(equal(.next(2)))
                 }
             }
 
@@ -146,19 +144,16 @@ class StateMachineSpec: QuickSpec {
                 it("that is called after each state change") {
                     mock.handle(.next(1))
                     mock.handle(.next(2))
-                    sleep(1)
 
-                    expect(transformerInvoications).to(equal(2))
-                    expect(lastTransformedState).to(equal(.state([1,2])))
+                    expect(transformerInvoications).toEventually(equal(2))
+                    expect(lastTransformedState).toEventually(equal(.state([1,2])))
                 }
 
                 it("that transforms state into the output") {
                     mock.handle(.next(1))
                     mock.handle(.next(2))
-                    sleep(1)
 
-                    let result = try! mock.output.asObservable().toBlocking().first()
-                    expect(result).to(equal(.output(.state([1,2]))))
+                    expect(mock.output.asObservable()).first.toEventually(equal(.output(.state([1,2]))))
                 }
             }
 
@@ -169,46 +164,38 @@ class StateMachineSpec: QuickSpec {
                         initialState: MockState.state([]),
                         reducer: testReducer,
                         transformer: testTransformer,
-                        middleware: [],
-                        requests: [testRequest]
+                        middleware: nil,
+                        request: testRequest
                     )
                 }
 
                 it("which are called after each state change") {
                     mock.handle(.next(1))
 
-                    // requests are being called an a differnt thread we need to wait for them to finish
-                    // in order to properly update test variables
-                    sleep(2)
+                    expect(requestInvoications).toEventually(equal(2))
+                    expect(lastRequestedState).toEventually(equal(.state([1])))
 
-                    expect(requestInvoications).to(equal(2))
-                    expect(lastRequestedState).to(equal(.state([1])))
+                    expect(reducerInvoications).toEventually(equal(1))
+                    expect(lastReducedState).toEventually(equal(.state([])))
+                    expect(lastReducedEvent).toEventually(equal(.next(1)))
 
-                    expect(reducerInvoications).to(equal(1))
-                    expect(lastReducedState).to(equal(.state([])))
-                    expect(lastReducedEvent).to(equal(.next(1)))
-
-                    expect(transformerInvoications).to(equal(2))
-                    expect(lastTransformedState).to(equal(.state([1])))
+                    expect(transformerInvoications).toEventually(equal(2))
+                    expect(lastTransformedState).toEventually(equal(.state([1])))
                 }
 
                 it("which can inject new events to be processed") {
                     mock.handle(.next(1))
                     mock.handle(.next(2))
 
-                    // requests are being called an a differnt thread we need to wait for them to finish
-                    // in order to properly update test variables
-                    sleep(4)
+                    expect(requestInvoications).toEventually(equal(4))
+                    expect(lastRequestedState).toEventually(equal(.state([1,2,3])))
 
-                    expect(requestInvoications).to(equal(4))
-                    expect(lastRequestedState).to(equal(.state([1,2,3])))
+                    expect(reducerInvoications).toEventually(equal(3))
+                    expect(lastReducedState).toEventually(equal(.state([1,2])))
+                    expect(lastReducedEvent).toEventually(equal(.next(3)))
 
-                    expect(reducerInvoications).to(equal(3))
-                    expect(lastReducedState).to(equal(.state([1,2])))
-                    expect(lastReducedEvent).to(equal(.next(3)))
-
-                    expect(transformerInvoications).to(equal(4))
-                    expect(lastTransformedState).to(equal(.state([1,2,3])))
+                    expect(transformerInvoications).toEventually(equal(4))
+                    expect(lastTransformedState).toEventually(equal(.state([1,2,3])))
                 }
             }
 
@@ -219,40 +206,32 @@ class StateMachineSpec: QuickSpec {
                         initialState: MockState.state([]),
                         reducer: testReducer,
                         transformer: testTransformer,
-                        middleware: [testMiddleware],
-                        requests: []
+                        middleware: testMiddleware,
+                        request: nil
                     )
                 }
 
                 it("which are called after each new event change") {
                     mock.handle(.next(1))
 
-                    // requests are being called an a differnt thread we need to wait for them to finish
-                    // in order to properly update test variables
-                    sleep(2)
+                    expect(middlewareInvoications).toEventually(equal(1))
+                    expect(lastMiddlewareEvent).toEventually(equal(.next(1)))
 
-                    expect(middlewareInvoications).to(equal(1))
-                    expect(lastMiddlewareEvent).to(equal(.next(1)))
-
-                    expect(reducerInvoications).to(equal(1))
-                    expect(lastReducedState).to(equal(.state([])))
-                    expect(lastReducedEvent).to(equal(.next(1)))
+                    expect(reducerInvoications).toEventually(equal(1))
+                    expect(lastReducedState).toEventually(equal(.state([])))
+                    expect(lastReducedEvent).toEventually(equal(.next(1)))
                 }
 
                 it("which can inject new events to be processed") {
                     mock.handle(.next(1))
                     mock.handle(.trigger(1))
 
-                    // requests are being called an a differnt thread we need to wait for them to finish
-                    // in order to properly update test variables
-                    sleep(4)
+                    expect(middlewareInvoications).toEventually(equal(2))
+                    expect(lastMiddlewareEvent).toEventually(equal(.trigger(1)))
 
-                    expect(middlewareInvoications).to(equal(2))
-                    expect(lastMiddlewareEvent).to(equal(.trigger(1)))
-
-                    expect(reducerInvoications).to(equal(2))
-                    expect(lastReducedState).to(equal(.state([1])))
-                    expect(lastReducedEvent).to(equal(.next(2)))
+                    expect(reducerInvoications).toEventually(equal(2))
+                    expect(lastReducedState).toEventually(equal(.state([1])))
+                    expect(lastReducedEvent).toEventually(equal(.next(2)))
                 }
             }
         }
