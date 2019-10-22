@@ -35,6 +35,7 @@ After running the app you can end up in the Pin Lock screen. For the moment Pin 
 There are few things to improve:
 
 - Improve memory and thread handling
+- Add proper documentation
 - Add proper error handling
 - Add more tests
 - Add more features 🚀
